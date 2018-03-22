@@ -15,14 +15,9 @@ ui <- dashboardPage(
                    #uiOutput("projects"),
                    sidebarMenu(
                      menuItem('Compare datasets', tabName = 'compare', icon = icon('hand-o-right')),
-                     menuItem("View TSNE", tabName = "tsne", icon = icon("hand-o-right"))
-                     #menuItem("scRNA data", tabName = "dashboard", icon = icon("hand-o-right"))
-                     
-                     
-                     #          menuSubItem("PCA Plot", tabName = "dashboard"),
-                     #          menuSubItem('Display Variances', tabName = 'var'),
-                     #          menuSubItem('Show 3D plot', tabName = '3dplot'))
-                 )#end of sidebar menu
+                     menuItem("View TSNE", tabName = "tsne", icon = icon("hand-o-right")),
+                     menuItem("scRNA data", tabName = "dashboard", icon = icon("hand-o-right"))
+         )#end of sidebar menu
 
   ),#end dashboardSidebar
   
@@ -35,6 +30,7 @@ ui <- dashboardPage(
     tabItems(
       tabItem(tabName = "dashboard",
               box(width = 10, status = "primary",solidHeader = TRUE,title = "Controls",
+                  uiOutput("projects"),
                   radioButtons("clust","Select one", c("All clusters"="all","Select Cluster"="clust"),selected = "clust"),
                   radioButtons("gene","Select one", c("All genes"="allgene","Enter Genelist"="genelist"),selected = "allgene"),
 
@@ -72,6 +68,10 @@ ui <- dashboardPage(
                   conditionalPanel(
                     condition = "input.ligand == 'rna' | input.ligand == 'microarray'" ,
                     sliderInput("explig", label = "Set Expression threshold", min =6,max = 12, value = 6)),
+                  conditionalPanel(
+                    condition = "input.ligand == 'scrna'" ,
+                    sliderInput("ligumi", label = "Set UMI threshold", min =1,max = 25, value = 1),
+                    sliderInput("ligsamp", label = "Set Percent Samples", min =0,max = 100, value = 50)),
                  checkboxInput("liggene", label = "Upload Gene List", value = FALSE),
     
       conditionalPanel(
@@ -85,6 +85,10 @@ ui <- dashboardPage(
                   conditionalPanel(
                     condition = "input.receptor == 'rna' | input.receptor == 'microarray'" ,
                     sliderInput("exprec", label = "Set Expression threshold", min =6,max = 12, value = 6)),
+                  conditionalPanel(
+                    condition = "input.receptor == 'scrna'" ,
+                    sliderInput("recumi", label = "Set UMI threshold", min =1,max = 25, value = 1),
+                    sliderInput("recsamp", label = "Set Percent Samples", min =0,max = 100, value = 50)),
                   checkboxInput("recgene", label = "Upload Gene List", value = FALSE),
                   conditionalPanel(
                     condition = "input.recgene ==true",
@@ -98,6 +102,7 @@ ui <- dashboardPage(
       tabItem(tabName = "tsne",
               box(width = 12,height = 10, status = "primary",solidHeader = TRUE,title = "TSNE Plot",
                   uiOutput("tsneprj"),
+                  checkboxInput("seuratclus", label = "Check to view Seurat Clusters", value = FALSE),
                   uiOutput("imp_pdf")
               )
       )#end of tabitem

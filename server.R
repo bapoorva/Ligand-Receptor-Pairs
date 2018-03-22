@@ -32,6 +32,7 @@ server <- function(input, output) {
   #Get Project list and populate drop-down
   output$projects = renderUI({
     excel=readexcel()
+    excel=excel[excel$type=="scrna",]
     prj=excel$projects
     selectInput("projects","Select a project",as.list(sort(as.character(prj))))
   })
@@ -124,7 +125,9 @@ server <- function(input, output) {
       scrna=scrna[scrna$ident==input$rectype,]
       rownames(scrna)=scrna$X
       scrna=scrna %>% dplyr::select(-X:-nGene)
-      keep= colSums(scrna>1)>=.2*dim(scrna)[1]
+      recumi=input$recumi
+      recsamp=(input$recsamp)/100
+      keep= colSums(scrna>recumi)>=recsamp*dim(scrna)[1]
       scrna2=scrna[,keep]
       rec_avg=NULL
       rec_genes=colnames(scrna2)
@@ -152,7 +155,9 @@ server <- function(input, output) {
       scrna=scrna[scrna$ident==input$ligtype,]
       rownames(scrna)=scrna$X
       scrna=scrna %>% dplyr::select(-X:-nGene)
-      keep= colSums(scrna>1)>=.2*dim(scrna)[1]
+      ligumi=input$ligumi
+      ligsamp=(input$ligsamp)/100
+      keep= colSums(scrna>ligumi)>=ligsamp*dim(scrna)[1]
       scrna2=scrna[,keep]
       lig_avg=NULL
       lig_genes=colnames(scrna2)
@@ -306,9 +311,13 @@ server <- function(input, output) {
   })
   
   output$imp_pdf <- renderUI({
+    if(input$seuratclus==F){
     PDFfile=paste(input$tsneprj,"_TSNE.pdf",sep="")
+    }else{
+      PDFfile=paste(input$tsneprj,"_Clusters.pdf",sep="")
+    }
     #PDFfile="test.pdf"
-    tags$iframe(src=PDFfile,width="100%",height="800px")
+    tags$iframe(src=PDFfile,width="100%",height="1000px")
   })
   ###################################################
   ###################################################
@@ -317,19 +326,20 @@ server <- function(input, output) {
   ###################################################
   
   datasetInput = reactive({
+    prj=paste("data/",input$projects,".csv",sep="")
     rl=read.csv("data/lig-rec.csv")
-    my.data=read.csv("data/mydata.csv")
+    my.data=read.csv(prj)
     # clust1.1=input$clust1.1
     # clust2.1=input$clust2.1
     # 
     result=data.frame()
     res=data.frame()
-    for(i in 0:(length(unique(my.data$ident))-1)){
-      for(j in 0:(length(unique(my.data$ident))-1)){
+    for(i in 0:(length(unique(my.data$clust))-1)){
+      for(j in 0:(length(unique(my.data$clust))-1)){
         if(i!=j){
-          test=my.data[my.data$ident==i | my.data$ident==j,]
-          R_c1=test[test$ident==i ,(colnames(test) %in% rl$Receptor.ApprovedSymbol)]
-          L_c2=test[test$ident==j , (colnames(test) %in% rl$Ligand.ApprovedSymbol)]
+          test=my.data[my.data$clust==i | my.data$clust==j,]
+          R_c1=test[test$clust==i ,(colnames(test) %in% rl$Receptor.ApprovedSymbol)]
+          L_c2=test[test$clust==j , (colnames(test) %in% rl$Ligand.ApprovedSymbol)]
           keep1 = colSums(R_c1>1)>=.5*dim(R_c1)[1]
           keep2 = colSums(L_c2>1)>=.5*dim(L_c2)[1]
 
