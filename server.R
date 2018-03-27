@@ -16,6 +16,21 @@ library(rglwidget)
 library(ggrepel)
 library(readxl)
 library(Biobase)
+library(pathview)
+library(gage)
+library(gageData)
+library(org.Mm.eg.db)
+
+#load entrez id's for kegg pathway
+data(kegg.sets.mm)
+#load indexes for signaling and metabolic pathways
+data(sigmet.idx.mm)
+#get entrez id's for signaling and metabolic pathwaysmera
+kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
+
+data(go.sets.mm)
+data(go.subs.mm)
+
 server <- function(input, output) {
   
   ###################################################
@@ -411,6 +426,42 @@ server <- function(input, output) {
                   ),rownames=FALSE,caption= "Result")
   })
   
-  
+  ###################################################
+  ###################################################
+  ############ run gage for kegg pathways ###########
+  ###################################################
+  ###################################################
+  gageres <- reactive({
+    #get receptor list and annotate it to get entrez ids
+    tab=ligrecpairs()
+    tab$pair=tab$Pair.Name
+    tab= tab %>% separate(pair,c("lig","rec"),sep="_")
+    res <- AnnotationDbi::select(org.Mm.eg.db, keys=as.character(tab$rec), columns=c("ENTREZID","SYMBOL"), keytype="SYMBOL")
+    res <- subset(res,!duplicated(res$ENTREZID))
+    final_tab<- left_join(tab,res, by=c("rec"="SYMBOL"))
+    final_tab=unique(final_tab)
+    final_tab$ENTREZID=paste0("ncbi-geneid:",final_tab$ENTREZID,sep="")
+    
+    #Convert entrez ids into kegg ids
+    keggids=(keggConv("mmu", final_tab$ENTREZID))
+    # keggids2=as.data.frame(keggids)
+    # keggids2$name=names(keggids)
+    # final_tab=left_join(final_tab,keggids2,by=c("ENTREZID"="name"))
+    # final_tab=unique(final_tab)
+    
+    #Find pathways
+    res=keggLink("pathway",keggids)
+    res2=as.data.frame(res)
+    res2$id=names(res)
+    res3=res2[res2$res %in% unique(res2$res[duplicated(res2$res)]),]
+    tab=as.data.frame(table(res3$res))
+    
+    
+  })
+  ###################################################
+  ###################################################
+  ################ PATHWAY ANALYSIS #################
+  ###################################################
+  ###################################################
   
 }#end of server

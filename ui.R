@@ -16,7 +16,8 @@ ui <- dashboardPage(
                    sidebarMenu(
                      menuItem('Compare datasets', tabName = 'compare', icon = icon('hand-o-right')),
                      menuItem("View TSNE", tabName = "tsne", icon = icon("hand-o-right")),
-                     menuItem("scRNA data", tabName = "dashboard", icon = icon("hand-o-right"))
+                     menuItem("scRNA data", tabName = "dashboard", icon = icon("hand-o-right")),
+                     menuItem("Pathway Analysis", tabName = "pathway", icon = icon("hand-o-right"))
          )#end of sidebar menu
 
   ),#end dashboardSidebar
@@ -59,6 +60,7 @@ ui <- dashboardPage(
                 DT::dataTableOutput('pairs_res')
                   )#end of box
               ),#end of tabitem
+      ######################################################################
       ######################################################################
       tabItem(tabName = "compare",
               box(width = 6, status = "primary",solidHeader = TRUE,title = "Ligand Selection Panel",
@@ -105,7 +107,18 @@ ui <- dashboardPage(
                   checkboxInput("seuratclus", label = "Check to view Seurat Clusters", value = FALSE),
                   uiOutput("imp_pdf")
               )
+      ),#end of tabitem
+      ######################################################################
+      ######################################################################
+      tabItem(tabName = "pathway",
+              box(width = 12,height = 10, status = "primary",solidHeader = TRUE,title = "KEGG Pathways",
+                  DT::dataTableOutput('ligrecpairs')
+              )#end of box
+              # box(width = 12,height = 10, status = "primary",solidHeader = TRUE,title = "KEGG Pathways",
+              #      uiOutput("pathview")
+              # )
       )#end of tabitem
+      ######################################################################
       ######################################################################
     )#end of tabitems
   )#end of dashboardbosy
