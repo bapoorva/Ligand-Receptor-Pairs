@@ -20,18 +20,8 @@ library(pathview)
 library(gage)
 library(gageData)
 library(org.Mm.eg.db)
-
-#load entrez id's for kegg pathway
-data(kegg.sets.mm)
-#load indexes for signaling and metabolic pathways
-data(sigmet.idx.mm)
-#get entrez id's for signaling and metabolic pathwaysmera
-kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
-
-data(go.sets.mm)
-data(go.subs.mm)
-
-server <- function(input, output) {
+library(KEGGREST)
+server <- function(input, output,session) {
   
   ###################################################
   ###################################################
@@ -256,6 +246,7 @@ server <- function(input, output) {
     input$recgene
     input$liggeneli
     input$recgeneli
+    withProgress(session = session, message = 'Generating...',detail = 'Please Wait...',{
     DT::datatable(ligrecpairs(),
                   extensions = c('Buttons','Scroller'),
                   options = list(dom = 'Bfrtip',
@@ -265,6 +256,7 @@ server <- function(input, output) {
                                  scrollX = TRUE,
                                  buttons = c('copy', 'print')
                   ),rownames=FALSE,escape = F,selection = list(mode = 'single', selected =1))
+    })
   })
 
   output$dwldtab = renderUI({
@@ -415,6 +407,7 @@ server <- function(input, output) {
     input$clust2
     input$genelist1
     input$genelist2
+    withProgress(session = session, message = 'Loading...',detail = 'Please Wait...',{
     DT::datatable(datasetInput(),
                   extensions = c('Buttons','Scroller'),
                   options = list(dom = 'Bfrtip',
@@ -424,14 +417,37 @@ server <- function(input, output) {
                                  scrollX = TRUE,
                                  buttons = c('copy', 'print')
                   ),rownames=FALSE,caption= "Result")
+    })
   })
   
   ###################################################
   ###################################################
-  ############ run gage for kegg pathways ###########
+  ################# kegg pathways ##################
   ###################################################
   ###################################################
-  gageres <- reactive({
+  output$rec = DT::renderDataTable({
+    input$receptor
+    input$ligand
+    input$recprj
+    input$ligprj
+    input$rectype
+    input$ligtype
+    input$liggene
+    input$recgene
+    input$liggeneli
+    input$recgeneli
+      DT::datatable(ligrecpairs(),
+                  extensions = c('Buttons','Scroller'),
+                  options = list(dom = 'Bfrtip',
+                                 searchHighlight = TRUE,
+                                 pageLength = 10,
+                                 lengthMenu = list(c(30, 50, 100, 150, 200, -1), c('30', '50', '100', '150', '200', 'All')),
+                                 scrollX = TRUE,
+                                 buttons = c('copy', 'print')
+                  ),rownames=FALSE,escape = F,selection = list(mode = 'single', selected =1))
+  })
+  
+  keggids <- reactive({
     #get receptor list and annotate it to get entrez ids
     tab=ligrecpairs()
     tab$pair=tab$Pair.Name
@@ -441,27 +457,83 @@ server <- function(input, output) {
     final_tab<- left_join(tab,res, by=c("rec"="SYMBOL"))
     final_tab=unique(final_tab)
     final_tab$ENTREZID=paste0("ncbi-geneid:",final_tab$ENTREZID,sep="")
-    
+    return(final_tab)
+})
+  gageres <- reactive({
+    final_tab=keggids()
     #Convert entrez ids into kegg ids
-    keggids=(keggConv("mmu", final_tab$ENTREZID))
-    # keggids2=as.data.frame(keggids)
-    # keggids2$name=names(keggids)
-    # final_tab=left_join(final_tab,keggids2,by=c("ENTREZID"="name"))
-    # final_tab=unique(final_tab)
+    if(length(final_tab$ENTREZID) > 200){
+      ids=final_tab$ENTREZID[1:200]
+    }else{
+      ids=final_tab$ENTREZID
+    }
+    keggids=(keggConv("mmu", ids))
     
     #Find pathways
     res=keggLink("pathway",keggids)
     res2=as.data.frame(res)
     res2$id=names(res)
     res3=res2[res2$res %in% unique(res2$res[duplicated(res2$res)]),]
-    tab=as.data.frame(table(res3$res))
-    
-    
+    table=as.data.frame(table(res3$res))
+    table=table[order(-table$Freq),]
+    table=table %>% separate(Var1,c("path","pathway_id")) %>% dplyr::select(-path)
+    for(i in 1: nrow(table)){
+      table$Name[i]=keggGet(table$pathway_id[i])[[1]]$PATHWAY_MAP
+    }
+    return(table)
+  })
+  
+  output$Keggpaths = DT::renderDataTable({
+    withProgress(session = session, message = 'Generating...',detail = 'Please Wait...',{
+    DT::datatable(gageres(),
+                  extensions = c('Buttons','Scroller'),
+                  options = list(dom = 'Bfrtip',
+                                 searchHighlight = TRUE,
+                                 pageLength = 10,
+                                 lengthMenu = list(c(30, 50, 100, 150, 200, -1), c('30', '50', '100', '150', '200', 'All')),
+                                 scrollX = TRUE,
+                                 buttons = c('copy', 'print')
+                  ),rownames=FALSE,escape = F,selection = list(mode = 'single', selected =1))
+    })
   })
   ###################################################
   ###################################################
   ################ PATHWAY ANALYSIS #################
   ###################################################
   ###################################################
+output$plots = renderImage({
+               withProgress(session = session, message = 'Generating...',detail = 'Please Wait...',{
+                   #input$makeplot
+                 path=gageres() #get KEGG id's  of pathways
+                 s = input$Keggpaths_rows_selected #select rows from table
+                 path = path[s, , drop=FALSE]#get data corresponding to selected row in table
+                keggresids=path$pathway_id
+                     #keggresids=datasetInput6() #get all KEGG id's
+                     #keggresids=keggids[is.na(keggids)==FALSE]
+                     final_res=keggids()
+                     final_res=final_res %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
+                     pId=keggresids #get KEGG id one by one in a  loop
+                     allgenelist=keggLink("mmu",pId) #for each kegg id, get gene list
+                     p=strsplit(allgenelist,":")
+                     genes_entrez=sapply(p,"[",2)
+                     genelist=final_res$ENTREZID[final_res$ENTREZID %in% genes_entrez]
+       #               validate(
+       #                 need(length(genelist) >0, "No match")
+       #               )
+                     myurl=mark.pathway.by.objects(pId,genelist) #get url of pathway image
+                     outfile = tempfile(fileext='.png') #create temp file
+                     png(outfile, width=900, height=800) #get temp file in png format
+                     download.file(myurl,outfile,mode="wb") #download png into the temp file
+                     png = readPNG(outfile) # read the PNG from the temp file and display
+                     dev.off()
+       
+                    list(src = outfile,contentType = 'image/png',width = 900,height = 800,alt = "This is alternate text")
+               })
+                 }, deleteFile = TRUE) #delete temp file
+           
+      
+  
+  
+  
   
 }#end of server

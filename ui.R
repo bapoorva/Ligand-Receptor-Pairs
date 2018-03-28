@@ -8,10 +8,10 @@ library(shinyjs)
 library(rglwidget)
 
 ui <- dashboardPage(
-  dashboardHeader(title = "Ligand-Receptor Pairs",titleWidth = 350),
-  dashboardSidebar(width = 350,
+  dashboardHeader(title = "Ligand-Receptor Pairs",titleWidth = 300),
+  dashboardSidebar(width = 300,
                    div(style="overflow-y: scroll"),
-                   tags$head(tags$style(HTML(".sidebar { height: 170vh; overflow-y: auto; }" ))),
+                   tags$head(tags$style(HTML(".sidebar { height: 250vh; overflow-y: auto; }" ))),
                    #uiOutput("projects"),
                    sidebarMenu(
                      menuItem('Compare datasets', tabName = 'compare', icon = icon('hand-o-right')),
@@ -111,12 +111,15 @@ ui <- dashboardPage(
       ######################################################################
       ######################################################################
       tabItem(tabName = "pathway",
-              box(width = 12,height = 10, status = "primary",solidHeader = TRUE,title = "KEGG Pathways",
-                  DT::dataTableOutput('ligrecpairs')
-              )#end of box
-              # box(width = 12,height = 10, status = "primary",solidHeader = TRUE,title = "KEGG Pathways",
-              #      uiOutput("pathview")
-              # )
+              box(width = 12, status = "primary",solidHeader = TRUE,title = "Ligand Receptor Pairs",
+                  DT::dataTableOutput('rec')
+              ),#end of box
+              box(width = 12, status = "primary",solidHeader = TRUE,title = "KEGG Pathways",
+                  DT::dataTableOutput('Keggpaths')
+              ),
+              box(width = 12,height = 12, status = "primary",solidHeader = TRUE,title = "Pathview",
+                  plotOutput("plots")
+              )
       )#end of tabitem
       ######################################################################
       ######################################################################
