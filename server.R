@@ -462,23 +462,37 @@ server <- function(input, output,session) {
   gageres <- reactive({
     final_tab=keggids()
     #Convert entrez ids into kegg ids
-    if(length(final_tab$ENTREZID) > 200){
-      ids=final_tab$ENTREZID[1:200]
-    }else{
-      ids=final_tab$ENTREZID
-    }
-    keggids=(keggConv("mmu", ids))
+    # if(length(final_tab$ENTREZID) > 200){
+    #   ids=final_tab$ENTREZID[1:200]
+    # }else{
+    #   ids=final_tab$ENTREZID
+    # }
+    s = input$rec_rows_selected #select rows from table
+    final_tab = final_tab[s, , drop=FALSE]
+    keggids=(keggConv("mmu",final_tab$ENTREZID))
     
     #Find pathways
     res=keggLink("pathway",keggids)
     res2=as.data.frame(res)
-    res2$id=names(res)
-    res3=res2[res2$res %in% unique(res2$res[duplicated(res2$res)]),]
-    table=as.data.frame(table(res3$res))
-    table=table[order(-table$Freq),]
-    table=table %>% separate(Var1,c("path","pathway_id")) %>% dplyr::select(-path)
+    res2$Receptor_id=names(res)
+    # res3=res2[res2$res %in% unique(res2$res[duplicated(res2$res)]),]
+    # table=as.data.frame(table(res3$res))
+    # table=table[order(-table$Freq),]
+    table=res2 %>% tidyr::separate(res,c("path","pathway_id")) %>% dplyr::select(-path)
+    final_res=keggids()
+    final_res=final_res %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
     for(i in 1: nrow(table)){
       table$Name[i]=keggGet(table$pathway_id[i])[[1]]$PATHWAY_MAP
+      # genes=keggGet(table$pathway_id[i])[[1]]$GENE
+      # ind=seq(1,length(genes),2)
+      # genes_entrez=genes[ind]
+      # genelist=final_res$ENTREZID[final_res$ENTREZID %in% genes_entrez]
+      allgenelist=keggLink("mmu",table$pathway_id[i]) #for each kegg id, get gene list
+      p=strsplit(allgenelist,":")
+      genes_entrez=sapply(p,"[",2)
+      genelist=genes_entrez[genes_entrez %in% final_res$ENTREZID]
+      genelist=unique(genelist)
+      table$Num_of_Rec_genes_in_pathway[i]=length(genelist)
     }
     return(table)
   })
@@ -507,16 +521,17 @@ output$plots = renderImage({
                  path=gageres() #get KEGG id's  of pathways
                  s = input$Keggpaths_rows_selected #select rows from table
                  path = path[s, , drop=FALSE]#get data corresponding to selected row in table
-                keggresids=path$pathway_id
+                 pId=path$pathway_id
                      #keggresids=datasetInput6() #get all KEGG id's
                      #keggresids=keggids[is.na(keggids)==FALSE]
                      final_res=keggids()
                      final_res=final_res %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
-                     pId=keggresids #get KEGG id one by one in a  loop
+                     #pId=keggresids #get KEGG id one by one in a  loop
                      allgenelist=keggLink("mmu",pId) #for each kegg id, get gene list
                      p=strsplit(allgenelist,":")
                      genes_entrez=sapply(p,"[",2)
-                     genelist=final_res$ENTREZID[final_res$ENTREZID %in% genes_entrez]
+                     genelist=genes_entrez[genes_entrez %in% final_res$ENTREZID]
+                     genelist=paste("mmu:",genelist,sep="")
        #               validate(
        #                 need(length(genelist) >0, "No match")
        #               )
