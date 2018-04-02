@@ -522,8 +522,8 @@ output$plots = renderImage({
                  pId=path$pathway_id
                  path=path %>% tidyr::separate(Receptor_id,c("rec","rec_id")) %>% dplyr::select(-rec)
                  recid=unique(path$rec_id)
+                     
                      final_res=keggids()
-
                      allgenelist=keggLink("mmu",table$pathway_id[i]) #for each kegg id, get gene list
                      p=strsplit(allgenelist,":")
                      genes_entrez=sapply(p,"[",2)
@@ -532,6 +532,7 @@ output$plots = renderImage({
                      allgenes=unique(c(rec_genes,final_res$ENTREZID_lig))
                      genelist=genes_entrez[genes_entrez %in% allgenes]
                      genelist=unique(genelist)
+                     genelist=paste0("mmu:",genelist,sep="")
                      
                      myurl=mark.pathway.by.objects(pId,genelist) #get url of pathway image
                      outfile = tempfile(fileext='.png') #create temp file
