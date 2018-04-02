@@ -524,7 +524,7 @@ output$plots = renderImage({
                  recid=unique(path$rec_id)
                      
                      final_res=keggids()
-                     allgenelist=keggLink("mmu",table$pathway_id[i]) #for each kegg id, get gene list
+                     allgenelist=keggLink("mmu",pId) #for each kegg id, get gene list
                      p=strsplit(allgenelist,":")
                      genes_entrez=sapply(p,"[",2)
                      rec_genes=final_res$ENTREZID_rec
