@@ -453,23 +453,22 @@ server <- function(input, output,session) {
     tab$pair=tab$Pair.Name
     tab= tab %>% separate(pair,c("lig","rec"),sep="_")
     res <- AnnotationDbi::select(org.Mm.eg.db, keys=as.character(tab$rec), columns=c("ENTREZID","SYMBOL"), keytype="SYMBOL")
+    res2 <- AnnotationDbi::select(org.Mm.eg.db, keys=as.character(tab$lig), columns=c("ENTREZID","SYMBOL"), keytype="SYMBOL")
     res <- subset(res,!duplicated(res$ENTREZID))
-    final_tab<- left_join(tab,res, by=c("rec"="SYMBOL"))
+    res2 <- subset(res2,!duplicated(res2$ENTREZID))
+    final_tab<- left_join(tab,res, by=c("rec"="SYMBOL")) %>% rename("ENTREZID"="ENTREZID_rec")
+    final_tab<- left_join(final_tab,res2, by=c("lig"="SYMBOL")) %>% rename("ENTREZID"="ENTREZID_lig")
     final_tab=unique(final_tab)
-    final_tab$ENTREZID=paste0("ncbi-geneid:",final_tab$ENTREZID,sep="")
+    # final_tab$ENTREZID_rec=paste0("ncbi-geneid:",final_tab$ENTREZID_rec,sep="")
+    # final_tab$ENTREZID_lig=paste0("ncbi-geneid:",final_tab$ENTREZID_lig,sep="")
     return(final_tab)
 })
   gageres <- reactive({
     final_tab=keggids()
-    #Convert entrez ids into kegg ids
-    # if(length(final_tab$ENTREZID) > 200){
-    #   ids=final_tab$ENTREZID[1:200]
-    # }else{
-    #   ids=final_tab$ENTREZID
-    # }
     s = input$rec_rows_selected #select rows from table
-    final_tab = final_tab[s, , drop=FALSE]
-    keggids=(keggConv("mmu",final_tab$ENTREZID))
+    select_tab = final_tab[s, , drop=FALSE]
+    select_tab$ENTREZID_rec=paste0("ncbi-geneid:",select_tab$ENTREZID_rec,sep="")
+    keggids=(keggConv("mmu",select_tab$ENTREZID_rec))
     
     #Find pathways
     res=keggLink("pathway",keggids)
@@ -479,8 +478,7 @@ server <- function(input, output,session) {
     # table=as.data.frame(table(res3$res))
     # table=table[order(-table$Freq),]
     table=res2 %>% tidyr::separate(res,c("path","pathway_id")) %>% dplyr::select(-path)
-    final_res=keggids()
-    final_res=final_res %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
+    # final_tab=final_tab %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
     for(i in 1: nrow(table)){
       table$Name[i]=keggGet(table$pathway_id[i])[[1]]$PATHWAY_MAP
       # genes=keggGet(table$pathway_id[i])[[1]]$GENE
@@ -490,7 +488,7 @@ server <- function(input, output,session) {
       allgenelist=keggLink("mmu",table$pathway_id[i]) #for each kegg id, get gene list
       p=strsplit(allgenelist,":")
       genes_entrez=sapply(p,"[",2)
-      genelist=genes_entrez[genes_entrez %in% final_res$ENTREZID]
+      genelist=genes_entrez[genes_entrez %in% final_tab$ENTREZID_rec]
       genelist=unique(genelist)
       table$Num_of_Rec_genes_in_pathway[i]=length(genelist)
     }
@@ -522,19 +520,19 @@ output$plots = renderImage({
                  s = input$Keggpaths_rows_selected #select rows from table
                  path = path[s, , drop=FALSE]#get data corresponding to selected row in table
                  pId=path$pathway_id
-                     #keggresids=datasetInput6() #get all KEGG id's
-                     #keggresids=keggids[is.na(keggids)==FALSE]
+                 path=path %>% tidyr::separate(Receptor_id,c("rec","rec_id")) %>% dplyr::select(-rec)
+                 recid=unique(path$rec_id)
                      final_res=keggids()
-                     final_res=final_res %>% separate(ENTREZID,c("ncbi","ENTREZID"),sep=":") %>% dplyr::select(-ncbi)
-                     #pId=keggresids #get KEGG id one by one in a  loop
-                     allgenelist=keggLink("mmu",pId) #for each kegg id, get gene list
+
+                     allgenelist=keggLink("mmu",table$pathway_id[i]) #for each kegg id, get gene list
                      p=strsplit(allgenelist,":")
                      genes_entrez=sapply(p,"[",2)
-                     genelist=genes_entrez[genes_entrez %in% final_res$ENTREZID]
-                     genelist=paste("mmu:",genelist,sep="")
-       #               validate(
-       #                 need(length(genelist) >0, "No match")
-       #               )
+                     rec_genes=final_res$ENTREZID_rec
+                     final_res=final_res[final_res$ENTREZID_rec %in% recid,]
+                     allgenes=unique(c(rec_genes,final_res$ENTREZID_lig))
+                     genelist=genes_entrez[genes_entrez %in% allgenes]
+                     genelist=unique(genelist)
+                     
                      myurl=mark.pathway.by.objects(pId,genelist) #get url of pathway image
                      outfile = tempfile(fileext='.png') #create temp file
                      png(outfile, width=900, height=800) #get temp file in png format
