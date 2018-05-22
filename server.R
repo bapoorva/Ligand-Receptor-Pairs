@@ -185,6 +185,24 @@ server <- function(input, output,session) {
       lig_genes=loaddata2$SYMBOL
     }
     rl=read.csv("data/lig-rec.csv")
+    file = read.csv("data/param.csv")
+    recorg=as.character(file$organism[file$projects==input$recprj])
+    ligorg=as.character(file$organism[file$projects==input$ligprj])
+    validate(
+      need(recorg==ligorg, "Cannot compare mouse to human")
+    )
+    if(recorg==ligorg){
+      org=recorg
+    }
+    if(org=="human"){
+      rl= rl %>% dplyr::select(Pair.Name:Receptor.ApprovedSymbol)
+      rl$Pair.Name=toupper(rl$Pair.Name)
+      rl$Ligand.ApprovedSymbol=toupper(rl$Ligand.ApprovedSymbol)
+      rl$Receptor.ApprovedSymbol=toupper(rl$Receptor.ApprovedSymbol)
+    }else if(org=="mouse"){
+      rl= rl %>% dplyr::select(Mouse_LigandSym:Mouse.Pairs) %>% rename("Mouse.Pairs"="Pair.Name","Mouse_LigandSym"="Ligand.ApprovedSymbol","Mouse_RecSym"="Receptor.ApprovedSymbol")
+    }
+    
     if(is.null(lig_avg)==F){rl=left_join(rl,lig_avg,by=c("Ligand.ApprovedSymbol"="SYMBOL")) %>% dplyr::rename(Ligand_AvgExpr=avg)}
     if(is.null(rec_avg)==F){rl=left_join(rl,rec_avg,by=c("Receptor.ApprovedSymbol"="SYMBOL")) %>% dplyr::rename(Receptor_AvgExpr=avg)}
     rl=rl[rl$Ligand.ApprovedSymbol %in% lig_genes & rl$Receptor.ApprovedSymbol %in% rec_genes,]
@@ -334,11 +352,20 @@ server <- function(input, output,session) {
   
   datasetInput = reactive({
     prj=paste("data/",input$projects,".csv",sep="")
+    file = read.csv("data/param.csv")
+    org=as.character(file$organism[file$projects==input$projects])
     rl=read.csv("data/lig-rec.csv")
     my.data=read.csv(prj)
-    # clust1.1=input$clust1.1
-    # clust2.1=input$clust2.1
-    # 
+    
+    if(org=="human"){
+      rl= rl %>% dplyr::select(Pair.Name:Receptor.ApprovedSymbol)
+      rl$Pair.Name=toupper(rl$Pair.Name)
+      rl$Ligand.ApprovedSymbol=toupper(rl$Ligand.ApprovedSymbol)
+      rl$Receptor.ApprovedSymbol=toupper(rl$Receptor.ApprovedSymbol)
+    }else if(org=="mouse"){
+      rl= rl %>% dplyr::select(Mouse_LigandSym:Mouse.Pairs) %>% rename("Mouse.Pairs"="Pair.Name","Mouse_LigandSym"="Ligand.ApprovedSymbol","Mouse_RecSym"="Receptor.ApprovedSymbol")
+    }
+    
     result=data.frame()
     res=data.frame()
     for(i in 0:(length(unique(my.data$clust))-1)){
