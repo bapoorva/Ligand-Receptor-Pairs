@@ -51,6 +51,10 @@ ui <- dashboardPage(
                     uiOutput("list2.1"),
                     uiOutput("clust1.1"),
                     uiOutput("clust2.1")
+                  ),
+                  fluidRow(
+                    column(6,uiOutput('source')),
+                    column(6,uiOutput('evidence'))
                   )
                   ),
 

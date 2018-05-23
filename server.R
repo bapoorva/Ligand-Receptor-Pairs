@@ -151,7 +151,7 @@ server <- function(input, output,session) {
       loaddata2$id=rownames(loaddata2)
       loaddata2=inner_join(loaddata2,fd,by="id")
       loaddata2=loaddata2[loaddata2$avg > minexpr,]
-      rec_avg=loaddata2 %>% dplyr::select(avg,SYMBOL)
+      rec_avg=loaddata2 %>% dplyr::select(avg,SYMBOL) %>% rename("avg"="Receptor_AvgExpr")
       rec_genes=loaddata2$SYMBOL
     }
 
@@ -181,33 +181,24 @@ server <- function(input, output,session) {
       loaddata2$id=rownames(loaddata2)
       loaddata2=inner_join(loaddata2,fd,by="id")
       loaddata2=loaddata2[loaddata2$avg > minexpr,]
-      lig_avg=loaddata2 %>% dplyr::select(avg,SYMBOL)
+      lig_avg=loaddata2 %>% dplyr::select(avg,SYMBOL) %>% rename("avg"="Ligand_AvgExpr")
       lig_genes=loaddata2$SYMBOL
     }
-    rl=read.csv("data/lig-rec.csv")
-    file = read.csv("data/param.csv")
-    recorg=as.character(file$organism[file$projects==input$recprj])
-    ligorg=as.character(file$organism[file$projects==input$ligprj])
-    validate(
-      need(recorg==ligorg, "Cannot compare mouse to human")
-    )
+    #rl=read.csv("data/lig-rec.csv")
+    param = read.csv("data/param.csv")
+    recorg=as.character(param$organism[param$projects==input$recprj])
+    ligorg=as.character(param$organism[param$projects==input$ligprj])
     if(recorg==ligorg){
       org=recorg
     }
-    if(org=="human"){
-      rl= rl %>% dplyr::select(Pair.Name:Receptor.ApprovedSymbol)
-      rl$Pair.Name=toupper(rl$Pair.Name)
-      rl$Ligand.ApprovedSymbol=toupper(rl$Ligand.ApprovedSymbol)
-      rl$Receptor.ApprovedSymbol=toupper(rl$Receptor.ApprovedSymbol)
-    }else if(org=="mouse"){
-      rl= rl %>% dplyr::select(Mouse_LigandSym:Mouse.Pairs) %>% rename("Mouse.Pairs"="Pair.Name","Mouse_LigandSym"="Ligand.ApprovedSymbol","Mouse_RecSym"="Receptor.ApprovedSymbol")
-    }
     
-    if(is.null(lig_avg)==F){rl=left_join(rl,lig_avg,by=c("Ligand.ApprovedSymbol"="SYMBOL")) %>% dplyr::rename(Ligand_AvgExpr=avg)}
-    if(is.null(rec_avg)==F){rl=left_join(rl,rec_avg,by=c("Receptor.ApprovedSymbol"="SYMBOL")) %>% dplyr::rename(Receptor_AvgExpr=avg)}
-    rl=rl[rl$Ligand.ApprovedSymbol %in% lig_genes & rl$Receptor.ApprovedSymbol %in% rec_genes,]
+    if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
     
-    
+      if(is.null(lig_avg)==F){rl=left_join(rl,lig_avg,by=c("ligand"="SYMBOL")) }
+      if(is.null(rec_avg)==F){rl=left_join(rl,rec_avg,by=c("receptor"="SYMBOL"))}
+     rl=rl[rl$ligand %in% lig_genes & rl$receptor %in% rec_genes,]
+
+
     if(input$liggene ==T){
       validate(
               need(input$liggeneli, "Please Upload genelist")
@@ -218,7 +209,7 @@ server <- function(input, output,session) {
       lgenes=tolower(lgenes)
       lgenes=firstup(lgenes)
     }else{lgenes=NULL}
-    
+
     if(input$recgene ==T){
       validate(
         need(input$recgeneli, "Please Upload genelist")
@@ -229,24 +220,25 @@ server <- function(input, output,session) {
       rgenes=tolower(rgenes)
       rgenes=firstup(rgenes)
     }else{rgenes=NULL}
-    
+
     if(is.null(lgenes)==F & is.null(rgenes)==T ){
-      rl=rl[rl$Ligand.ApprovedSymbol %in% lgenes,]
+      rl=rl[rl$ligand %in% lgenes,]
     }else if(is.null(lgenes)==T & is.null(rgenes)==F){
-      rl=rl[rl$Receptor.ApprovedSymbol %in% rgenes,]
+      rl=rl[rl$receptor %in% rgenes,]
     }else if(is.null(lgenes)==F & is.null(rgenes)==F ){
-      rl=rl[(rl$Receptor.ApprovedSymbol %in% rgenes) & (rl$Ligand.ApprovedSymbol %in% lgenes),]
+      rl=rl[(rl$receptor %in% rgenes) & (rl$ligand %in% lgenes),]
     }else{rl=rl}
-    
+
     validate(
       need(nrow(rl)>=1, "No Ligand-Receptor Pairs for the combination chosen")
     )
-    recid=toupper(rl$Receptor.ApprovedSymbol)
-    ligid=toupper(rl$Ligand.ApprovedSymbol)
+    recid=toupper(rl$receptor)
+    ligid=toupper(rl$ligand)
     urlr= paste("http://www.genecards.org/cgi-bin/carddisp.pl?gene=",recid,sep = "")
     urll= paste("http://www.genecards.org/cgi-bin/carddisp.pl?gene=",ligid,sep = "")
-    rl$Receptor.ApprovedSymbol=paste0("<a href='",urlr,"'target='_blank'>",rl$Receptor.ApprovedSymbol,"</a>")
-    rl$Ligand.ApprovedSymbol=paste0("<a href='",urll,"'target='_blank'>",rl$Ligand.ApprovedSymbol,"</a>")
+    rl$receptor=paste0("<a href='",urlr,"'target='_blank'>",rl$receptor,"</a>")
+    rl$ligand=paste0("<a href='",urll,"'target='_blank'>",rl$ligand,"</a>")
+    rl= rl[order(rl$ligand),]
     return(rl)
   })
 
@@ -323,6 +315,32 @@ server <- function(input, output,session) {
   output$clust2.1 <- renderUI({
     selectInput("clust2.1","Pick cluster2",c(0:11),selected=2)
   })
+  
+  output$source <- renderUI({
+    param = read.csv("data/param.csv")
+    recorg=as.character(param$organism[param$projects==input$recprj])
+    ligorg=as.character(param$organism[param$projects==input$ligprj])
+    if(recorg==ligorg){
+      org=recorg
+    }
+    if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
+    options=as.character(unique(rl$Pair.Source))
+    selectInput('source', 'Select source',c(options,"All"),selected="All")
+  })
+  
+  output$evidence <- renderUI({
+    param = read.csv("data/param.csv")
+    recorg=as.character(param$organism[param$projects==input$recprj])
+    ligorg=as.character(param$organism[param$projects==input$ligprj])
+    if(recorg==ligorg){
+      org=recorg
+    }
+    if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
+    options=as.character(unique(rl$Pair.Evidence))
+    selectInput('evidence', 'Select Evidence',c(options,"All"),selected="All")
+  })
+  
+  
   ###################################################
   ###################################################
   ###### DISPLAY TSNE PLOT FOR SELECTED PROJECT######
@@ -357,14 +375,7 @@ server <- function(input, output,session) {
     rl=read.csv("data/lig-rec.csv")
     my.data=read.csv(prj)
     
-    if(org=="human"){
-      rl= rl %>% dplyr::select(Pair.Name:Receptor.ApprovedSymbol)
-      rl$Pair.Name=toupper(rl$Pair.Name)
-      rl$Ligand.ApprovedSymbol=toupper(rl$Ligand.ApprovedSymbol)
-      rl$Receptor.ApprovedSymbol=toupper(rl$Receptor.ApprovedSymbol)
-    }else if(org=="mouse"){
-      rl= rl %>% dplyr::select(Mouse_LigandSym:Mouse.Pairs) %>% rename("Mouse.Pairs"="Pair.Name","Mouse_LigandSym"="Ligand.ApprovedSymbol","Mouse_RecSym"="Receptor.ApprovedSymbol")
-    }
+    if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
     
     result=data.frame()
     res=data.frame()
@@ -372,14 +383,14 @@ server <- function(input, output,session) {
       for(j in 0:(length(unique(my.data$clust))-1)){
         if(i!=j){
           test=my.data[my.data$clust==i | my.data$clust==j,]
-          R_c1=test[test$clust==i ,(colnames(test) %in% rl$Receptor.ApprovedSymbol)]
-          L_c2=test[test$clust==j , (colnames(test) %in% rl$Ligand.ApprovedSymbol)]
+          R_c1=test[test$clust==i ,(colnames(test) %in% rl$receptor)]
+          L_c2=test[test$clust==j , (colnames(test) %in% rl$ligand)]
           keep1 = colSums(R_c1>1)>=.5*dim(R_c1)[1]
           keep2 = colSums(L_c2>1)>=.5*dim(L_c2)[1]
 
           R_c1=R_c1[,keep1]
           L_c2=L_c2[,keep2]
-          res=rl[(rl$Ligand.ApprovedSymbol %in% colnames(L_c2)) & (rl$Receptor.ApprovedSymbol %in% colnames(R_c1)),]
+          res=rl[(rl$ligand %in% colnames(L_c2)) & (rl$receptor %in% colnames(R_c1)),]
 
         }
         else{}
@@ -391,24 +402,28 @@ server <- function(input, output,session) {
       }
     }
     result=result[result$Receptor_cluster!=result$Lig_cluster,]
-    
+   return(result)
+  })
+
+  finalres= reactive({
+    result=datasetInput()
     if(input$clust=="clust" & input$gene=="allgene"){
       clusters=c(input$clust1,input$clust2)
       result=result[(result$Receptor_cluster %in% clusters) & (result$Lig_cluster%in% clusters),]
     }else if(input$clust=="clust" & input$gene=="genelist"){
       clusters.1=c(input$clust1.1,input$clust2.1)
       result=result[(result$Receptor_cluster %in% clusters.1) & (result$Lig_cluster%in% clusters.1),]
-      }else{result=result
-      }
+    }else{result=result
+    }
     
     if(input$gene=="genelist"){
       if(input$clust=="all"){
-      g1=input$genelist1
-      g2=input$genelist2
-    }else if(input$clust=="clust"){
-      g1=input$genelist1.1
-      g2=input$genelist2.1
-    }
+        g1=input$genelist1
+        g2=input$genelist2
+      }else if(input$clust=="clust"){
+        g1=input$genelist1.1
+        g2=input$genelist2.1
+      }
       genes=read.table(g1$datapath,stringsAsFactors = F)#get complete gene list as string
       g1=as.vector(genes$V1)
       g1=tolower(g1)
@@ -421,13 +436,15 @@ server <- function(input, output,session) {
       g2=as.vector(genes2$V1)
       g2=tolower(g2)
       g2=firstup(g2)
-      result=result[(result$Receptor.ApprovedSymbol %in% g1) & (result$Ligand.ApprovedSymbol %in% g2),]
+      result=result[(result$receptor %in% g1) & (result$ligand %in% g2),]
     }else{
       result=result
     }
-   return(result)
+    if(input$source!="All"){result=result[result$Pair.Source==input$source,]}
+    if(input$evidence!="All"){result=result[result$Pair.Evidence==input$evidence,]}
+    return(result)
   })
-
+  
   #print data TABLE
   output$pairs_res = DT::renderDataTable({
     input$clust1
@@ -435,7 +452,7 @@ server <- function(input, output,session) {
     input$genelist1
     input$genelist2
     withProgress(session = session, message = 'Loading...',detail = 'Please Wait...',{
-    DT::datatable(datasetInput(),
+    DT::datatable(finalres(),
                   extensions = c('Buttons','Scroller'),
                   options = list(dom = 'Bfrtip',
                                  searchHighlight = TRUE,
@@ -477,7 +494,7 @@ server <- function(input, output,session) {
   keggids <- reactive({
     #get receptor list and annotate it to get entrez ids
     tab=ligrecpairs()
-    tab$pair=tab$Pair.Name
+    tab$pair=tab$pairname
     tab= tab %>% separate(pair,c("lig","rec"),sep="_")
     res <- AnnotationDbi::select(org.Mm.eg.db, keys=as.character(tab$rec), columns=c("ENTREZID","SYMBOL"), keytype="SYMBOL")
     res2 <- AnnotationDbi::select(org.Mm.eg.db, keys=as.character(tab$lig), columns=c("ENTREZID","SYMBOL"), keytype="SYMBOL")
