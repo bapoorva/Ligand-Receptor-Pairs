@@ -440,8 +440,8 @@ server <- function(input, output,session) {
     }else{
       result=result
     }
-    if(input$checksource==T){result=result[result$Pair.Source==input$source,]}
-    if(input$checkevi==T){result=result[result$Pair.Evidence==input$evidence,]}
+    if(input$checksource==T){result=result[result$Pair.Source %in% input$source,]}
+    if(input$checkevi==T){result=result[result$Pair.Evidence %in% input$evidence,]}
     return(result)
   })
   
