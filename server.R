@@ -325,7 +325,7 @@ server <- function(input, output,session) {
     }
     if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
     options=as.character(unique(rl$Pair.Source))
-    selectInput('source', 'Select source',c(options,"All"),selected="All")
+    checkboxGroupInput('source', label='Select source(s)',choices=options,selected=options[1])
   })
   
   output$evidence <- renderUI({
@@ -337,7 +337,7 @@ server <- function(input, output,session) {
     }
     if(org=="mouse"){rl=read.csv("data/Mm_PairsLigRec.csv")}else if(org=="human"){rl=read.csv("data/Hs_PairsLigRec.csv")}
     options=as.character(unique(rl$Pair.Evidence))
-    selectInput('evidence', 'Select Evidence',c(options,"All"),selected="All")
+    checkboxGroupInput('evidence',label='Select Evidence(s)',choices=options,selected=options[1])
   })
   
   
@@ -440,8 +440,8 @@ server <- function(input, output,session) {
     }else{
       result=result
     }
-    if(input$source!="All"){result=result[result$Pair.Source==input$source,]}
-    if(input$evidence!="All"){result=result[result$Pair.Evidence==input$evidence,]}
+    if(input$checksource==T){result=result[result$Pair.Source==input$source,]}
+    if(input$checkevi==T){result=result[result$Pair.Evidence==input$evidence,]}
     return(result)
   })
   

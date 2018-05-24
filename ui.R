@@ -53,8 +53,18 @@ ui <- dashboardPage(
                     uiOutput("clust2.1")
                   ),
                   fluidRow(
-                    column(6,uiOutput('source')),
-                    column(6,uiOutput('evidence'))
+                    column(6,checkboxInput("checksource", label = "Check to select by source", value = FALSE)),
+                    column(6,checkboxInput("checkevi", label = "Check to select by evidence", value = FALSE)),
+                    conditionalPanel(
+                      condition = "input.checksource ==true",
+                      column(6,uiOutput('source'))
+                    ),
+                    conditionalPanel(
+                      condition = "input.checkevi ==true",
+                      column(6,uiOutput('evidence'))
+                    )
+                    
+                    
                   )
                   ),
 
